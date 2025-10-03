@@ -1,6 +1,8 @@
-# src/main.py
 import flet as ft
-from screens.login_screen import LoginScreen
+from src.screens.welcome_screen import WelcomeScreen
+from src.screens.login_screen import LoginScreen
+from src.screens.contact_screen import ContactScreen
+from src.screens.profile_screen import ProfileScreen
 
 
 # Setup App 
@@ -11,18 +13,32 @@ def main(page: ft.Page):
 
     # Setup Navigation and Routing
     def route_change(route):
-        page.views.clear()
+        t_route = ft.TemplateRoute(page.route)
 
+        if t_route.match("/"):
+            page.views.clear()
+            page.views.append(WelcomeScreen(page))
 
-        if page.route == "/login":
+        elif t_route.match("/login"):
             page.views.append(LoginScreen(page))
-
-
+        elif t_route.match("/contact"):
+            page.views.append(ContactScreen(page))
+        elif t_route.match("/profile"):
+            page.views.append(ProfileScreen(page))
+        elif t_route.match("/teacher_dashboard"):
+            page.views.append(TeacherDashboardScreen(page)) #ใส่ไว้รอหน้าจารย์
+        
         page.update()
 
-    page.on_route_change = route_change
+    def view_pop(view):
+        page.views.pop()
+        top_view = page.views[-1]
+        page.go(top_view.route)
 
-    page.go("/login")
+    page.on_route_change = route_change
+    page.on_view_pop = view_pop
+
+    page.go("/")
 
 
 
