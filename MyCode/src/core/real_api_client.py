@@ -35,3 +35,16 @@ class RealApiClient:
             
             return MockErrorResponse(status_code=503, error_message="Service Unavailable")
 
+    # --- เพิ่มเมธอด GET เข้าไป ---
+    def get(self, endpoint):
+        """
+        ส่ง GET request ไปยัง Server จริง
+        """
+        url = f"{self.base_url}{endpoint}"
+        try:
+            response = requests.get(url)
+            return response
+        except requests.exceptions.RequestException as e:
+            print(f"API call failed: {e}")
+            return MockErrorResponse(status_code=503, error_message="Service Unavailable")
+

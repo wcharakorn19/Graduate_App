@@ -1,27 +1,36 @@
 import flet as ft
+# --- 1. Import API Client ของเรา ---
+from src.core.real_api_client import RealApiClient
 
 def HomeScreen(page: ft.Page):
-    """
-    สร้างหน้าจอ Home โดยใช้ Layout มาตรฐานและเตรียมพร้อมสำหรับ API
-    """
+    
+    # --- 2. สร้าง instance ของ API Client ---
+    api_client = RealApiClient()
 
-    pending_count = ft.Text("0", size=20, weight=ft.FontWeight.BOLD)
-    completed_count = ft.Text("0", size=20, weight=ft.FontWeight.BOLD)
-    failed_count = ft.Text("0", size=20, weight=ft.FontWeight.BOLD)
-
+    # --- โครงสร้าง UI เดิมของคุณ ---
+    pending_count = ft.Text("...", size=20, weight=ft.FontWeight.BOLD)
+    completed_count = ft.Text("...", size=20, weight=ft.FontWeight.BOLD)
+    failed_count = ft.Text("...", size=20, weight=ft.FontWeight.BOLD)
     recent_documents_list = ft.Column(spacing=15)
 
+    # --- ฟังก์ชันสำหรับอัปเดต UI (เหมือนเดิม) ---
     def update_dashboard_data(data):
         pending_count.value = str(data.get("pending_count", 0))
         completed_count.value = str(data.get("completed_count", 0))
         failed_count.value = str(data.get("failed_count", 0))
         recent_documents_list.controls.clear()
-        for doc in data.get("documents", []):
-            recent_documents_list.controls.append(
-                _create_document_card(doc.get("title"), doc.get("status"))
-            )
-        page.update()
+        
+        documents = data.get("documents", [])
+        if not documents:
+            recent_documents_list.controls.append(ft.Text("ไม่มีเอกสารล่าสุด", color="grey"))
+        else:
+            for doc in documents:
+                recent_documents_list.controls.append(
+                    _create_document_card(doc.get("title"), doc.get("status"))
+                )
+        # ไม่ต้องเรียก page.update() ที่นี่ เพราะเราจะเรียกตอนท้ายทีเดียว
 
+    # --- Helper Functions (เหมือนเดิม) ---
     def _create_status_card(count_control, label, bgcolor, border_color):
         return ft.Container(
             width=110, height=90, bgcolor=bgcolor, border_radius=15,
@@ -38,7 +47,6 @@ def HomeScreen(page: ft.Page):
                 ]
             )
         )
-
     def _create_document_card(title, status):
         return ft.Card(
             content=ft.Container(
@@ -57,30 +65,44 @@ def HomeScreen(page: ft.Page):
                 )
             )
         )
+    
+    # --- 3. ย้าย Logic การเรียก API มาไว้ตรงนี้ (ตำแหน่งที่ถูกต้อง) ---
+    # โค้ดส่วนนี้จะทำงานทันทีที่หน้า Home ถูกสร้างขึ้น
+    user_data = getattr(page, "user_data", {})
+    user_email = user_data.get("email")
 
+    if user_email:
+        print(f"--- HomeScreen CREATED, fetching data for {user_email} ---")
+        response = api_client.get(f"/dashboard/{user_email}")
+        if response.status_code == 200:
+            dashboard_data = response.json()
+            # นำข้อมูลที่ได้ไปใส่ใน UI ทันที
+            update_dashboard_data(dashboard_data)
+        else:
+            print("Failed to fetch dashboard data.")
+            update_dashboard_data({})
+    else:
+        print("No user email found to fetch dashboard data.")
+        update_dashboard_data({})
+
+    # --- โครงสร้าง UI เดิมของคุณ (แก้ไขไวยากรณ์ให้ถูกต้อง) ---
     header_content = ft.Container(
-        height=200, bgcolor="black", border_radius=ft.border_radius.vertical(bottom=25),
-        padding=20,
+        height=200, bgcolor="black", border_radius=ft.border_radius.vertical(bottom=25), padding=20,
         content=ft.Column(
             alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
             controls=[
-                ft.Row(
-                    [
-                        ft.Image(src="logo_1.jpeg", width=50, height=50, fit=ft.ImageFit.CONTAIN),
-                        ft.IconButton(icon="exit_to_app", icon_color="white")
-                    ],
-                    alignment=ft.MainAxisAlignment.SPACE_BETWEEN
-                ),
+                ft.Row([
+                    ft.Image(src="logo_1.jpeg", width=50, height=50, fit=ft.ImageFit.CONTAIN),
+                    ft.IconButton(icon="exit_to_app", icon_color="white", on_click=lambda _: page.go("/"))
+                ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
                 ft.TextField(
                     hint_text="Search",
-                    prefix_icon="search", border_radius=10, bgcolor="#424242",
-                    border_color="transparent", height=40, text_size=14,
-                    content_padding=10,
+                    border_radius=10, bgcolor="#424242",
+                    border_color="transparent", height=40, text_size=14, content_padding=10
                 )
             ]
         )
     )
-
     overview_content = ft.Container(
         bgcolor="white", border_radius=15, padding=20,
         content=ft.Column(
@@ -98,31 +120,19 @@ def HomeScreen(page: ft.Page):
             spacing=15
         )
     )
-
     documents_content = ft.Container(
         bgcolor="white", border_radius=15, padding=20,
         content=ft.Column(
-            [
-                ft.Text("Recent Documents", weight=ft.FontWeight.BOLD),
-                recent_documents_list
-            ],
+            [ft.Text("Recent Documents", weight=ft.FontWeight.BOLD), recent_documents_list],
             spacing=15,
             scroll=ft.ScrollMode.AUTO
         )
     )
 
-    recent_documents_list.controls.extend([
-        _create_document_card("แบบขอรับรองการเป็นอาจารย์ที่ปรึกษาวิทยานิพนธ์ หลัก/ร่วม", "เสร็จสิ้น"),
-        _create_document_card("แบบเสนอหัวข้อและเค้าโครงวิทยานิพนธ์ ระดับบัณฑิตศึกษา", "กำลังตรวจสอบ"),
-    ])
-
     def on_nav_change(e):
         selected_index = e.control.selected_index
-        if selected_index == 0:
-            page.go("/profile")
-        elif selected_index == 2:
-            page.go("/contact")
-
+        if selected_index == 0: page.go("/profile")
+        elif selected_index == 2: page.go("/contact")
     bottom_nav_bar = ft.NavigationBar(
         selected_index=1,
         destinations=[
@@ -142,18 +152,11 @@ def HomeScreen(page: ft.Page):
                 expand=True, spacing=0,
                 controls=[
                     header_content,
-                    # --- แก้ไข: นำ Column ไปใส่ใน Container ที่มี Padding ---
                     ft.Container(
-                        padding=20, # ย้าย Padding มาไว้ที่นี่
-                        expand=True,
+                        padding=20, expand=True,
                         content=ft.Column(
-                            [
-                                overview_content,
-                                documents_content,
-                            ],
-                            spacing=20,
-                            expand=True,
-                            scroll=ft.ScrollMode.AUTO,
+                            [overview_content, documents_content],
+                            spacing=20, expand=True, scroll=ft.ScrollMode.AUTO
                         )
                     ),
                     bottom_nav_bar,

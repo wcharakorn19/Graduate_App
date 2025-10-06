@@ -1,15 +1,12 @@
-from fastapi import FastAPI, HTTPException 
+from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 import uvicorn
-import json                         
-import os                             
+import json
+import os
 
-# fuction อ่าน data json
 def _load_users_from_json():
-    
     current_dir = os.path.dirname(os.path.abspath(__file__))
     file_path = os.path.join(current_dir, "core", "users_db.json")
-
     try:
         with open(file_path, "r", encoding="utf-8") as f:
             return json.load(f)
@@ -17,43 +14,64 @@ def _load_users_from_json():
         print(f"Error: Database file not found at {file_path}")
         return {}
 
-
 app = FastAPI()
-
 USERS_DB = _load_users_from_json()
 
-# class จะรับแค่ email and password for Login
+# --- 1. สร้างฐานข้อมูลจำลองสำหรับหน้า Dashboard ---
+DASHBOARD_DATA = {
+    "65030226@kmitl.ac.th": {
+        "pending_count": 3,
+        "completed_count": 8,
+        "failed_count": 1,
+        "documents": [
+            {"title": "แบบเสนอหัวข้อและเค้าโครงวิทยานิพนธ์", "status": "กำลังตรวจสอบ"},
+            {"title": "แบบขอสอบวัดคุณสมบัติ", "status": "เสร็จสิ้น"},
+            {"title": "แบบขอเปลี่ยนชื่อ-นามสกุล", "status": "เสร็จสิ้น"},
+        ]
+    },
+    "65030276@kmitl.ac.th": {
+        "pending_count": 1,
+        "completed_count": 5,
+        "failed_count": 2,
+        "documents": [
+            {"title": "แบบขออนุมัติสำเร็จการศึกษา", "status": "ไม่ผ่าน"},
+            {"title": "แบบขอลงทะเบียนล่าช้า", "status": "กำลังตรวจสอบ"},
+        ]
+    }
+}
+
 class LoginRequest(BaseModel):
     email: str
     password: str
 
-
 @app.post("/login")
-
-# fuction request
 def login_endpoint(request: LoginRequest):
-
     email = request.email
     password = request.password
-
-    # ค้นหาผู้ใช้ใน USERS_DB ด้วย email
     user = USERS_DB.get(email)
-    
-    # ตรวจสอบว่ามีผู้ใช้นี้อยู่จริง และรหัสผ่านที่ส่งมาตรงกันหรือไม่
     if user and user.get("password") == password:
         user_data = user.copy()
         user_data.pop("password", None)
-        
         print(f"Login successful for: {email}")
         return user_data
-    
     else:
         print(f"Login failed for: {email}")
         raise HTTPException(status_code=401, detail="Invalid credentials")
 
+# --- 2. สร้าง Endpoint ใหม่สำหรับหน้า Home ---
+@app.get("/dashboard/{email}")
+def get_dashboard_data(email: str):
+    print(f"Dashboard data requested for: {email}")
+    data = DASHBOARD_DATA.get(email)
+    if data:
+        return data
+    else:
+        return {
+            "pending_count": 0, "completed_count": 0,
+            "failed_count": 0, "documents": []
+        }
 
 if __name__ == "__main__":
     print("Starting FastAPI server at http://127.0.0.1:8000")
-    
-    uvicorn.run("api_server:app", host="127.0.0.1", port=8000, reload=True)
+    uvicorn.run("src.api_server:app", host="127.0.0.1", port=8000, reload=True)
 
