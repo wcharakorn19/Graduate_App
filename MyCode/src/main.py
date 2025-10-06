@@ -3,6 +3,7 @@ from src.screens.welcome_screen import WelcomeScreen
 from src.screens.login_screen import LoginScreen
 from src.screens.contact_screen import ContactScreen
 from src.screens.profile_screen import ProfileScreen
+from src.screens.home_screen import HomeScreen
 
 
 # Setup App 
@@ -21,12 +22,18 @@ def main(page: ft.Page):
 
         elif t_route.match("/login"):
             page.views.append(LoginScreen(page))
+
+        elif t_route.match("/home"):
+            page.views.append(HomeScreen(page))
+
         elif t_route.match("/contact"):
             page.views.append(ContactScreen(page))
+
         elif t_route.match("/profile"):
             page.views.append(ProfileScreen(page))
-        elif t_route.match("/teacher_dashboard"):
-            page.views.append(TeacherDashboardScreen(page)) #ใส่ไว้รอหน้าจารย์
+            
+        #elif t_route.match("/teacher_dashboard"):
+            #page.views.append(TeacherDashboardScreen(page)) #ใส่ไว้รอหน้าจารย์
         
         page.update()
 

@@ -43,7 +43,7 @@ def LoginScreen(page: ft.Page):
         if response.status_code == 200:
             user_data = response.json()
             page.user_data = user_data
-            page.go("/profile")
+            page.go("/home")
         else:
             page.snack_bar = ft.SnackBar(
                 ft.Text("E-mail หรือ Password ไม่ถูกต้อง!"),

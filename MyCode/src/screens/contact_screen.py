@@ -83,7 +83,7 @@ def ContactScreen(page: ft.Page):
         if selected_index == 0:
             page.go("/profile")
         elif selected_index == 1:
-            page.go("/contact")
+            page.go("/home")
         # สามารถเพิ่มเงื่อนไขสำหรับปุ่มอื่นๆ ได้ในอนาคต
 
     bottom_nav_bar = ft.NavigationBar(

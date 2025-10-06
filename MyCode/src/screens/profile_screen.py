@@ -67,7 +67,11 @@ def ProfileScreen(page: ft.Page):
 
     def on_nav_change(e):
         selected_index = e.control.selected_index
-        if selected_index == 1: page.go("/contact")
+        if selected_index == 1: 
+            page.go("/home")
+
+        elif selected_index == 2:
+            page.go("/coctact")
 
     bottom_nav_bar = ft.NavigationBar(
         selected_index=0,
