@@ -1,26 +1,48 @@
 import flet as ft
+import requests # เพิ่ม import requests
 
 def ProfileScreen(page: ft.Page):
     
-    user_data = getattr(page, "user_data", {})
-    print("--- Profile Screen ---")
-    print("Data from page attribute:", user_data)
+    # --- ส่วนที่แก้ไข: ดึงข้อมูลจาก API แทน page.user_data ---
+    user_email = page.session.get("user_email")
+    
+    # 1. เช็ค Session
+    if not user_email:
+        # ถ้าไม่มี session ให้กลับไปหน้า login
+        page.go("/login")
+        return ft.View(controls=[ft.Text("Redirecting...")])
+        
+    # 2. ดึงข้อมูลจาก API
+    api_url = f"http://127.0.0.1:8000/profile/{user_email}"
+    user_data = {} # เตรียมตัวแปรไว้รับข้อมูล
+    
+    try:
+        response = requests.get(api_url, timeout=3)
+        if response.status_code == 200:
+            user_data = response.json()
+            print("--- Profile Screen ---")
+            print("Data loaded from API:", user_data)
+        else:
+            print("Error loading profile:", response.status_code)
+    except Exception as e:
+        print("Connection error:", e)
 
+    # --- จบส่วนแก้ไข (ข้างล่างนี้คือ UI เดิมของนาย) ---
     
     profile_avatar = ft.CircleAvatar(
         foreground_image_src="https://flet.dev/images/user-5.png",
         radius=50
     )
     
-    student_id_text = ft.Text(user_data.get("student_id", ""), size=14)
-    full_name_text = ft.Text(user_data.get("full_name", ""), size=14)
-    education_level_text = ft.Text(user_data.get("education_level", ""), size=14)
-    program_text = ft.Text(user_data.get("program", ""), size=14)
-    department_text = ft.Text(user_data.get("department", ""), size=14)
-    faculty_text = ft.Text(user_data.get("faculty", ""), size=14)
-    status_text = ft.Text(user_data.get("status", ""), size=14)
-    phone_text = ft.Text(user_data.get("phone", ""), size=14)
-    email_text = ft.Text(user_data.get("email", ""), size=14)
+    student_id_text = ft.Text(user_data.get("student_id", "-"), size=14)
+    full_name_text = ft.Text(user_data.get("full_name", "-"), size=14)
+    education_level_text = ft.Text(user_data.get("education_level", "-"), size=14)
+    program_text = ft.Text(user_data.get("program", "-"), size=14)
+    department_text = ft.Text(user_data.get("department", "-"), size=14)
+    faculty_text = ft.Text(user_data.get("faculty", "-"), size=14)
+    status_text = ft.Text(user_data.get("status", "-"), size=14)
+    phone_text = ft.Text(user_data.get("phone", "-"), size=14)
+    email_text = ft.Text(user_data.get("email", "-"), size=14)
 
     
     def _create_field(label, control):
@@ -51,7 +73,7 @@ def ProfileScreen(page: ft.Page):
                 ft.Stack(
                     [
                         ft.Row([profile_avatar], alignment=ft.MainAxisAlignment.CENTER),
-                        ft.Row([ft.IconButton(icon="exit_to_app", icon_color="pink", on_click=lambda _: page.go("/"))], alignment=ft.MainAxisAlignment.END),
+                        ft.Row([ft.IconButton(icon="exit_to_app", icon_color="pink", on_click=lambda _: page.go("/login"))], alignment=ft.MainAxisAlignment.END), # แก้ redirect logout กลับไป login
                     ]
                 ),
                 ft.Text("Profile", size=24, weight="bold", color="pink"),
@@ -71,7 +93,7 @@ def ProfileScreen(page: ft.Page):
             page.go("/home")
 
         elif selected_index == 2:
-            page.go("/coctact")
+            page.go("/contact") # แก้คำผิด coctact -> contact ให้ด้วยครับ
 
     bottom_nav_bar = ft.NavigationBar(
         selected_index=0,
@@ -91,4 +113,3 @@ def ProfileScreen(page: ft.Page):
         controls=[profile_content],
         navigation_bar=bottom_nav_bar,
     )
-

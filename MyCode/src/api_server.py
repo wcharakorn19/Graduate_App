@@ -58,20 +58,39 @@ def login_endpoint(request: LoginRequest):
         print(f"Login failed for: {email}")
         raise HTTPException(status_code=401, detail="Invalid credentials")
 
-# --- 2. สร้าง Endpoint ใหม่สำหรับหน้า Home ---
+# --- 2. Endpoint สำหรับหน้า Home ---
 @app.get("/dashboard/{email}")
 def get_dashboard_data(email: str):
     print(f"Dashboard data requested for: {email}")
-    data = DASHBOARD_DATA.get(email)
-    if data:
-        return data
-    else:
-        return {
+    
+    dashboard_data = DASHBOARD_DATA.get(email)
+    
+    if not dashboard_data:
+        dashboard_data = {
             "pending_count": 0, "completed_count": 0,
             "failed_count": 0, "documents": []
         }
+    
+    user_info = USERS_DB.get(email, {})
+    full_name = user_info.get("full_name", "Unknown User") 
+
+    response_data = dashboard_data.copy()
+    response_data["full_name"] = full_name 
+    
+    return response_data
+
+# --- 3. (เพิ่มใหม่) Endpoint สำหรับหน้า Profile ---
+@app.get("/profile/{email}")
+def get_user_profile(email: str):
+    print(f"Profile data requested for: {email}")
+    user = USERS_DB.get(email)
+    if user:
+        user_data = user.copy()
+        user_data.pop("password", None)
+        return user_data
+    else:
+        return {}
 
 if __name__ == "__main__":
     print("Starting FastAPI server at http://127.0.0.1:8000")
     uvicorn.run("src.api_server:app", host="127.0.0.1", port=8000, reload=True)
-

@@ -5,8 +5,9 @@ def LoginScreen(page: ft.Page):
     
     api_client = RealApiClient()
 
+    # --- UI Components ---
     logo_image = ft.Image(
-        src="logo_1.jpeg",
+        src="logo_1.jpeg", 
         width=150,
         height=150,
         fit=ft.ImageFit.CONTAIN,
@@ -19,7 +20,8 @@ def LoginScreen(page: ft.Page):
         bgcolor="white",
         border_color="transparent",
         height=50,
-        text_size=14
+        text_size=14,
+        color="black"
     )
     password_field = ft.TextField(
         label="Password",
@@ -29,26 +31,48 @@ def LoginScreen(page: ft.Page):
         bgcolor="white",
         border_color="transparent",
         height=50,
-        text_size=14
+        text_size=14,
+        color="black"
     )
     
+    # --- Logic การล็อกอิน ---
     def do_login(e):
         email = email_field.value
         password = password_field.value
-        response = api_client.post(
-            endpoint="/login",
-            data={"email": email, "password": password}
-        )
+        
+        if not email or not password:
+            page.snack_bar = ft.SnackBar(ft.Text("กรุณากรอก E-mail และ Password"), bgcolor="red")
+            page.snack_bar.open = True
+            page.update()
+            return
 
-        if response.status_code == 200:
-            user_data = response.json()
-            page.user_data = user_data
-            page.go("/home")
-        else:
-            page.snack_bar = ft.SnackBar(
-                ft.Text("E-mail หรือ Password ไม่ถูกต้อง!"),
-                bgcolor="red"
+        try:
+            response = api_client.post(
+                endpoint="/login",
+                data={"email": email, "password": password}
             )
+
+            if response.status_code == 200:
+                user_data = response.json()
+                
+                # ✅ 1. บันทึก Session
+                page.session.set("user_email", email)
+                print(f"✅ Login Success! Session saved for: {email}")
+                
+                # ✅ 2. เปลี่ยนจุดหมายจาก "/" เป็น "/home" (แก้ตรงนี้!)
+                page.go("/home") 
+            else:
+                print(f"❌ Login Failed: {response.status_code}")
+                page.snack_bar = ft.SnackBar(
+                    ft.Text("E-mail หรือ Password ไม่ถูกต้อง!"),
+                    bgcolor="red"
+                )
+                page.snack_bar.open = True
+                page.update()
+                
+        except Exception as ex:
+            print(f"❌ Error during login: {ex}")
+            page.snack_bar = ft.SnackBar(ft.Text(f"เกิดข้อผิดพลาด: {ex}"), bgcolor="red")
             page.snack_bar.open = True
             page.update()
 
@@ -61,6 +85,7 @@ def LoginScreen(page: ft.Page):
         on_click=do_login
     )
 
+    # --- Layout ---
     top_content = ft.Container(
         height=250,
         alignment=ft.alignment.center,
@@ -99,11 +124,12 @@ def LoginScreen(page: ft.Page):
         appbar=ft.AppBar(
             leading=ft.IconButton(
                 icon="arrow_back",
-                on_click=lambda _: page.go("/")
+                on_click=lambda _: page.go("/") # กลับไปหน้า Welcome
             ),
-            title=ft.Text("KMITL"),
+            title=ft.Text("KMITL", color="black"),
             center_title=True,
-            bgcolor="white"
+            bgcolor="white",
+            elevation=0
         ),
         controls=[
             ft.Column(
@@ -116,4 +142,3 @@ def LoginScreen(page: ft.Page):
             )
         ]
     )
-

@@ -1,167 +1,161 @@
 import flet as ft
-# --- 1. Import API Client ของเรา ---
-from src.core.real_api_client import RealApiClient
+import requests
 
 def HomeScreen(page: ft.Page):
     
-    # --- 2. สร้าง instance ของ API Client ---
-    api_client = RealApiClient()
-
-    # --- โครงสร้าง UI เดิมของคุณ ---
-    pending_count = ft.Text("...", size=20, weight=ft.FontWeight.BOLD)
-    completed_count = ft.Text("...", size=20, weight=ft.FontWeight.BOLD)
-    failed_count = ft.Text("...", size=20, weight=ft.FontWeight.BOLD)
-    recent_documents_list = ft.Column(spacing=15)
-
-    # --- ฟังก์ชันสำหรับอัปเดต UI (เหมือนเดิม) ---
-    def update_dashboard_data(data):
-        pending_count.value = str(data.get("pending_count", 0))
-        completed_count.value = str(data.get("completed_count", 0))
-        failed_count.value = str(data.get("failed_count", 0))
-        recent_documents_list.controls.clear()
-        
-        documents = data.get("documents", [])
-        if not documents:
-            recent_documents_list.controls.append(ft.Text("ไม่มีเอกสารล่าสุด", color="grey"))
-        else:
-            for doc in documents:
-                recent_documents_list.controls.append(
-                    _create_document_card(doc.get("title"), doc.get("status"))
-                )
-        # ไม่ต้องเรียก page.update() ที่นี่ เพราะเราจะเรียกตอนท้ายทีเดียว
-
-    # --- Helper Functions (เหมือนเดิม) ---
-    def _create_status_card(count_control, label, bgcolor, border_color):
-        return ft.Container(
-            width=110, height=90, bgcolor=bgcolor, border_radius=15,
-            border=ft.border.all(1, border_color), padding=15,
-            content=ft.Column(
-                spacing=5,
-                controls=[
-                    ft.Container(
-                        width=24, height=24, bgcolor="white",
-                        border_radius=12, alignment=ft.alignment.center,
-                        content=count_control
-                    ),
-                    ft.Text(label, size=12)
-                ]
-            )
-        )
-    def _create_document_card(title, status):
-        return ft.Card(
-            content=ft.Container(
-                padding=20,
-                content=ft.Row(
-                    controls=[
-                        ft.Container(width=60, height=60, bgcolor="#eeeeee", border_radius=10),
-                        ft.Column(
-                            [
-                                ft.Text(title, weight=ft.FontWeight.BOLD, size=14),
-                                ft.Text(f"สถานะ: {status}", size=12, color="grey"),
-                            ],
-                            spacing=5, expand=True,
-                        )
-                    ]
-                )
-            )
-        )
+    # 1. ดึงข้อมูล Session
+    current_user_email = page.session.get("user_email")
     
-    # --- 3. ย้าย Logic การเรียก API มาไว้ตรงนี้ (ตำแหน่งที่ถูกต้อง) ---
-    # โค้ดส่วนนี้จะทำงานทันทีที่หน้า Home ถูกสร้างขึ้น
-    user_data = getattr(page, "user_data", {})
-    user_email = user_data.get("email")
+    # ถ้าไม่มี Session ให้ดีดกลับไป Login
+    if not current_user_email:
+        print("⚠️ No Session found, redirecting to login...")
+        page.go("/login")
+        return ft.View(controls=[ft.Text("Redirecting...")]) 
 
-    if user_email:
-        print(f"--- HomeScreen CREATED, fetching data for {user_email} ---")
-        response = api_client.get(f"/dashboard/{user_email}")
-        if response.status_code == 200:
-            dashboard_data = response.json()
-            # นำข้อมูลที่ได้ไปใส่ใน UI ทันที
-            update_dashboard_data(dashboard_data)
-        else:
-            print("Failed to fetch dashboard data.")
-            update_dashboard_data({})
+    API_ENDPOINT = f"http://127.0.0.1:8000/dashboard/{current_user_email}"
+
+    # --- ฟังก์ชันดึงข้อมูล (เหมือนเดิม) ---
+    def fetch_dashboard_data():
+        try:
+            response = requests.get(API_ENDPOINT, timeout=3)
+            if response.status_code == 200:
+                data = response.json()
+                return {
+                    "user_display_name": data.get("full_name", "ผู้ใช้งาน"), 
+                    "documents": data.get("documents", []),
+                    "stats": {
+                        "pending": data.get("pending_count", 0),
+                        "completed": data.get("completed_count", 0),
+                        "failed": data.get("failed_count", 0)
+                    }
+                }
+        except Exception:
+            pass
+        return None
+
+    api_data = fetch_dashboard_data()
+
+    # --- Fallback Data ---
+    if not api_data:
+        ui_data = {
+            "user_display_name": "กำลังโหลด...",
+            "documents": [],
+            "current_doc": {"title": "-", "status": "-"},
+            "stats": {"pending": 0, "completed": 0, "failed": 0}
+        }
     else:
-        print("No user email found to fetch dashboard data.")
-        update_dashboard_data({})
+        docs = api_data.get("documents", [])
+        first_doc = docs[0] if docs else {"title": "ไม่มีเอกสารดำเนินการ", "status": "-"}
+        ui_data = {
+            "user_display_name": api_data["user_display_name"],
+            "documents": docs,
+            "current_doc": first_doc,
+            "stats": api_data["stats"]
+        }
 
-    # --- โครงสร้าง UI เดิมของคุณ (แก้ไขไวยากรณ์ให้ถูกต้อง) ---
-    header_content = ft.Container(
-        height=200, bgcolor="black", border_radius=ft.border_radius.vertical(bottom=25), padding=20,
-        content=ft.Column(
-            alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
-            controls=[
-                ft.Row([
-                    ft.Image(src="logo_1.jpeg", width=50, height=50, fit=ft.ImageFit.CONTAIN),
-                    ft.IconButton(icon="exit_to_app", icon_color="white", on_click=lambda _: page.go("/"))
-                ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
-                ft.TextField(
-                    hint_text="Search",
-                    border_radius=10, bgcolor="#424242",
-                    border_color="transparent", height=40, text_size=14, content_padding=10
-                )
-            ]
+    # --- UI Components (เหมือนเดิม) ---
+    def create_activity_item(title, status):
+        status_color = "grey600"
+        icon_color = "purple700"
+        bg_color = "purple50"
+
+        if status == "เสร็จสิ้น" or status == "ผ่านแล้ว": 
+            status_color = "green"; icon_color = "green"; bg_color = "green50"
+        elif status == "ไม่ผ่าน": 
+            status_color = "red"; icon_color = "red"; bg_color = "red50"
+        elif status == "กำลังตรวจสอบ": 
+            status_color = "orange"
+
+        return ft.Container(
+            content=ft.Row([
+                ft.Container(
+                    content=ft.Icon(name="folder_open_outlined", color=icon_color, size=24),
+                    padding=10, bgcolor=bg_color, border_radius=12,
+                ),
+                ft.Column([
+                    ft.Text(title, size=14, weight="w500", color="black87"),
+                    ft.Text(f"Status : {status}", size=12, color=status_color),
+                ], spacing=2, expand=True)
+            ], alignment=ft.MainAxisAlignment.START),
+            padding=15, bgcolor="grey50", border_radius=12,
+            border=ft.border.all(1, "grey200"), margin=ft.margin.only(bottom=10)
         )
-    )
-    overview_content = ft.Container(
-        bgcolor="white", border_radius=15, padding=20,
-        content=ft.Column(
-            [
-                ft.Text("Process Overview", weight=ft.FontWeight.BOLD),
-                ft.Row(
-                    [
-                        _create_status_card(pending_count, "กำลังตรวจสอบ", "#fff9c4", "#fbc02d"),
-                        _create_status_card(completed_count, "เสร็จสิ้น", "#c8e6c9", "#388e3c"),
-                        _create_status_card(failed_count, "ไม่ผ่าน", "#ffcdd2", "#d32f2f"),
-                    ],
-                    alignment=ft.MainAxisAlignment.SPACE_AROUND
-                )
-            ],
-            spacing=15
+
+    activity_controls = []
+    if ui_data["documents"]:
+        for doc in ui_data["documents"]:
+            activity_controls.append(create_activity_item(doc['title'], doc['status']))
+    else:
+        activity_controls.append(
+            ft.Container(
+                content=ft.Column([
+                    ft.Icon(name="assignment_turned_in_outlined", color="grey400", size=40),
+                    ft.Text("ไม่มีรายการกิจกรรมล่าสุด", color="grey500")
+                ], horizontal_alignment=ft.CrossAxisAlignment.CENTER),
+                alignment=ft.alignment.center, padding=30
+            )
         )
-    )
-    documents_content = ft.Container(
-        bgcolor="white", border_radius=15, padding=20,
-        content=ft.Column(
-            [ft.Text("Recent Documents", weight=ft.FontWeight.BOLD), recent_documents_list],
-            spacing=15,
-            scroll=ft.ScrollMode.AUTO
-        )
+
+    # --- Main Layout ---
+    content_column = ft.Column(
+        controls=[
+            ft.Container(
+                content=ft.Text(ui_data['user_display_name'], size=22, weight="bold", color="black"),
+                margin=ft.margin.only(top=10, bottom=15)
+            ),
+            ft.Container(
+                content=ft.Column([
+                    ft.Text("Doc Name:", weight="bold", size=15, color="black"),
+                    ft.Text(ui_data['current_doc']['title'], size=14, color="black87"), 
+                    ft.Divider(height=10, color="transparent"),
+                    ft.Text("สถานะ :", color="grey600", size=13),
+                    ft.Text(
+                        ui_data['current_doc']['status'], 
+                        weight="bold", size=18, 
+                        color="purple700" if ui_data['current_doc']['status'] != "-" else "grey400"
+                    ),
+                ], spacing=2),
+                padding=25, bgcolor="white", border_radius=20, width=float("inf"),
+                shadow=ft.BoxShadow(spread_radius=0, blur_radius=20, color="#14000000", offset=ft.Offset(0, 4))
+            ),
+            ft.Container(
+                content=ft.Text("Latest Activities", size=18, weight="bold", color="black"),
+                margin=ft.margin.only(top=20, bottom=10)
+            ),
+            ft.Container(
+                content=ft.Column(controls=activity_controls, spacing=0),
+                padding=20, bgcolor="white", border_radius=20, width=float("inf"),
+                shadow=ft.BoxShadow(spread_radius=0, blur_radius=20, color="#14000000", offset=ft.Offset(0, 4))
+            ),
+            ft.Container(height=50)
+        ],
+        spacing=10
     )
 
+    # --- Nav Logic ---
     def on_nav_change(e):
-        selected_index = e.control.selected_index
-        if selected_index == 0: page.go("/profile")
-        elif selected_index == 2: page.go("/contact")
+        idx = e.control.selected_index
+        if idx == 0: page.go("/profile")
+        elif idx == 1: page.go("/home")  # ✅ แก้ให้ชี้มาที่ /home (ตัวเอง)
+        elif idx == 2: page.go("/contact")
+
     bottom_nav_bar = ft.NavigationBar(
+        bgcolor="white",
+        indicator_color="#2A2A40",
         selected_index=1,
+        on_change=on_nav_change,
         destinations=[
             ft.NavigationBarDestination(icon="person_outline", selected_icon="person", label="Profile"),
             ft.NavigationBarDestination(icon="home_outlined", selected_icon="home", label="Home"),
             ft.NavigationBarDestination(icon="chat_bubble_outline", selected_icon="chat_bubble", label="Contact"),
         ],
-        on_change=on_nav_change
     )
 
     return ft.View(
-        route="/home",
-        bgcolor="#f0f0f0",
-        padding=0,
-        controls=[
-            ft.Column(
-                expand=True, spacing=0,
-                controls=[
-                    header_content,
-                    ft.Container(
-                        padding=20, expand=True,
-                        content=ft.Column(
-                            [overview_content, documents_content],
-                            spacing=20, expand=True, scroll=ft.ScrollMode.AUTO
-                        )
-                    ),
-                    bottom_nav_bar,
-                ]
-            )
-        ]
+        route="/home", # ✅ แก้ Route ของหน้านี้ให้เป็น /home
+        controls=[content_column], 
+        bgcolor="white", 
+        padding=20,
+        scroll=ft.ScrollMode.AUTO,
+        navigation_bar=bottom_nav_bar 
     )
-

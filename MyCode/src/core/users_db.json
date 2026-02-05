@@ -2,7 +2,7 @@
     "65030226@kmitl.ac.th": {
         "password": "1234",
         "student_id": "65030226",
-        "full_name": "วัชรากร น้อยพันธ์ดี)",
+        "full_name": "วัชรากร น้อยพันธ์ดี",
         "education_level": "ปริญญาโท",
         "program": "วิศวกรรมคอมพิวเตอร์",
         "department": "วิศวกรรมคอมพิวเตอร์",
@@ -10,6 +10,7 @@
         "status": "Normal",
         "phone": "081-234-5678",
         "email": "65030226@kmitl.ac.th"
+        
     },
     "65030276@kmitl.ac.th": {
         "password": "1234",
